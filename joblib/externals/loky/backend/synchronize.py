@@ -102,14 +102,7 @@ class SemLock:
 
     @staticmethod
     def _cleanup(name):
-        try:
-            sem_unlink(name)
-        except FileNotFoundError:
-            # Already unlinked, possibly by user code: ignore and make sure to
-            # unregister the semaphore from the resource tracker.
-            pass
-        finally:
-            resource_tracker.unregister(name, "semlock")
+        pass
 
     def _make_methods(self):
         self.acquire = self._semlock.acquire
@@ -150,9 +143,7 @@ class Semaphore(SemLock):
         SemLock.__init__(self, SEMAPHORE, value, SEM_VALUE_MAX)
 
     def get_value(self):
-        if sys.platform == "darwin":
-            raise NotImplementedError("OSX does not implement sem_getvalue")
-        return self._semlock._get_value()
+        pass
 
     def __repr__(self):
         try:
@@ -311,62 +302,13 @@ class Condition:
                 self._lock.acquire()
 
     def notify(self):
-        assert self._lock._semlock._is_mine(), "lock is not owned"
-        assert not self._wait_semaphore.acquire(False)
-
-        # to take account of timeouts since last notify() we subtract
-        # woken_count from sleeping_count and rezero woken_count
-        while self._woken_count.acquire(False):
-            res = self._sleeping_count.acquire(False)
-            assert res
-
-        if self._sleeping_count.acquire(False):  # try grabbing a sleeper
-            self._wait_semaphore.release()  # wake up one sleeper
-            self._woken_count.acquire()  # wait for the sleeper to wake
-
-            # rezero _wait_semaphore in case a timeout just happened
-            self._wait_semaphore.acquire(False)
+        pass
 
     def notify_all(self):
-        assert self._lock._semlock._is_mine(), "lock is not owned"
-        assert not self._wait_semaphore.acquire(False)
-
-        # to take account of timeouts since last notify*() we subtract
-        # woken_count from sleeping_count and rezero woken_count
-        while self._woken_count.acquire(False):
-            res = self._sleeping_count.acquire(False)
-            assert res
-
-        sleepers = 0
-        while self._sleeping_count.acquire(False):
-            self._wait_semaphore.release()  # wake up one sleeper
-            sleepers += 1
-
-        if sleepers:
-            for _ in range(sleepers):
-                self._woken_count.acquire()  # wait for a sleeper to wake
-
-            # rezero wait_semaphore in case some timeouts just happened
-            while self._wait_semaphore.acquire(False):
-                pass
+        pass
 
     def wait_for(self, predicate, timeout=None):
-        result = predicate()
-        if result:
-            return result
-        if timeout is not None:
-            endtime = _time() + timeout
-        else:
-            endtime = None
-            waittime = None
-        while not result:
-            if endtime is not None:
-                waittime = endtime - _time()
-                if waittime <= 0:
-                    break
-            self.wait(waittime)
-            result = predicate()
-        return result
+        pass
 
 
 #
@@ -380,17 +322,10 @@ class Event:
         self._flag = Semaphore(0)
 
     def is_set(self):
-        with self._cond:
-            if self._flag.acquire(False):
-                self._flag.release()
-                return True
-            return False
+        pass
 
     def set(self):
-        with self._cond:
-            self._flag.acquire(False)
-            self._flag.release()
-            self._cond.notify_all()
+        pass
 
     def clear(self):
         with self._cond:

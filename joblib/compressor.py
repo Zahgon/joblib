@@ -322,7 +322,7 @@ class BinaryZlibFile(io.BufferedIOBase):
     @property
     def closed(self):
         """True if this file is closed."""
-        return self._mode == _MODE_CLOSED
+        pass
 
     def fileno(self):
         """Return the file descriptor for the underlying file."""
@@ -340,8 +340,7 @@ class BinaryZlibFile(io.BufferedIOBase):
 
     def writable(self):
         """Return whether the file was opened for writing."""
-        self._check_not_closed()
-        return self._mode == _MODE_WRITE
+        pass
 
     # Mode-checking helper functions.
 
@@ -462,8 +461,7 @@ class BinaryZlibFile(io.BufferedIOBase):
 
         Returns the number of bytes read (0 for EOF).
         """
-        with self._lock:
-            return io.BufferedIOBase.readinto(self, b)
+        pass
 
     def write(self, data):
         """Write a byte string to the file.

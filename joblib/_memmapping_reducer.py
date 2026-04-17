@@ -57,15 +57,7 @@ JOBLIB_MMAPS = set()
 
 
 def _log_and_unlink(filename):
-    from .externals.loky.backend.resource_tracker import _resource_tracker
-
-    util.debug(
-        "[FINALIZER CALL] object mapping to {} about to be deleted,"
-        " decrementing the refcount of the file (pid: {})".format(
-            os.path.basename(filename), os.getpid()
-        )
-    )
-    _resource_tracker.maybe_unlink(filename, "file")
+    pass
 
 
 def add_maybe_unlink_finalizer(memmap):
@@ -88,25 +80,7 @@ def unlink_file(filename):
     it takes for the last reference of the memmap to be closed, yielding (on
     Windows) a PermissionError in the resource_tracker loop.
     """
-    NUM_RETRIES = 10
-    for retry_no in range(1, NUM_RETRIES + 1):
-        try:
-            os.unlink(filename)
-            break
-        except PermissionError:
-            util.debug(
-                "[ResourceTracker] tried to unlink {}, got PermissionError".format(
-                    filename
-                )
-            )
-            if retry_no == NUM_RETRIES:
-                raise
-            else:
-                time.sleep(0.2)
-        except FileNotFoundError:
-            # In case of a race condition when deleting the temporary folder,
-            # avoid noisy FileNotFoundError exception in the resource tracker.
-            pass
+    pass
 
 
 resource_tracker._CLEANUP_FUNCS["file"] = unlink_file
@@ -132,22 +106,7 @@ class _WeakArrayKeyMap:
         return val
 
     def set(self, obj, value):
-        key = id(obj)
-        try:
-            ref, _ = self._data[key]
-            if ref() is not obj:
-                # In case of race condition with on_destroy: could never be
-                # triggered by the joblib tests with CPython.
-                raise KeyError(obj)
-        except KeyError:
-            # Insert the new entry in the mapping along with a weakref
-            # callback to automatically delete the entry from the mapping
-            # as soon as the object used as key is garbage collected.
-            def on_destroy(_):
-                del self._data[key]
-
-            ref = weakref.ref(obj, on_destroy)
-        self._data[key] = ref, value
+        pass
 
     def __getstate__(self):
         raise PicklingError("_WeakArrayKeyMap is not pickleable")
@@ -287,74 +246,12 @@ def _reduce_memmap_backed(a, m):
     m is expected to be an instance of np.memmap on the top of the ``base``
     attribute ancestry of a. ``m.base`` should be the real python mmap object.
     """
-    # offset that comes from the striding differences between a and m
-    util.debug(
-        "[MEMMAP REDUCE] reducing a memmap-backed array (shape, {}, pid: {})".format(
-            a.shape, os.getpid()
-        )
-    )
-    try:
-        from numpy.lib.array_utils import byte_bounds
-    except (ModuleNotFoundError, ImportError):
-        # Backward-compat for numpy < 2.0
-        from numpy import byte_bounds
-    a_start, a_end = byte_bounds(a)
-    m_start = byte_bounds(m)[0]
-    offset = a_start - m_start
-
-    # offset from the backing memmap
-    offset += m.offset
-
-    # 1D arrays are both F and C contiguous, so only set the flag in
-    # higher dimensions. See https://github.com/joblib/joblib/pull/1704.
-    if m.ndim > 1 and m.flags["F_CONTIGUOUS"]:
-        order = "F"
-    else:
-        # The backing memmap buffer is necessarily contiguous hence C if not
-        # Fortran
-        order = "C"
-
-    if a.flags["F_CONTIGUOUS"] or a.flags["C_CONTIGUOUS"]:
-        # If the array is a contiguous view, no need to pass the strides
-        strides = None
-        total_buffer_len = None
-    else:
-        # Compute the total number of items to map from which the strided
-        # view will be extracted.
-        strides = a.strides
-        total_buffer_len = (a_end - a_start) // a.itemsize
-
-    return (
-        _strided_from_memmap,
-        (
-            m.filename,
-            a.dtype,
-            m.mode,
-            offset,
-            order,
-            a.shape,
-            strides,
-            total_buffer_len,
-            False,
-        ),
-    )
+    pass
 
 
 def reduce_array_memmap_backward(a):
     """reduce a np.array or a np.memmap from a child process"""
-    m = _get_backing_memmap(a)
-    if isinstance(m, np.memmap) and m.filename not in JOBLIB_MMAPS:
-        # if a is backed by a memmaped file, reconstruct a using the
-        # memmaped file.
-        return _reduce_memmap_backed(a, m)
-    else:
-        # a is either a regular (not memmap-backed) numpy array, or an array
-        # backed by a shared temporary file created by joblib. In the latter
-        # case, in order to limit the lifespan of these temporary files, we
-        # serialize the memmap as a regular numpy array, and decref the
-        # file backing the memmap (done implicitly in a previously registered
-        # finalizer, see ``unlink_on_gc_collect`` for more details)
-        return (loads, (dumps(np.asarray(a), protocol=HIGHEST_PROTOCOL),))
+    pass
 
 
 class ArrayMemmapForwardReducer(object):
@@ -406,7 +303,7 @@ class ArrayMemmapForwardReducer(object):
 
     @property
     def _temp_folder(self):
-        return self._temp_folder_resolver()
+        pass
 
     def __reduce__(self):
         # The ArrayMemmapForwardReducer is passed to the children processes: it
@@ -629,7 +526,7 @@ class TemporaryResourcesManager(object):
 
     def resolve_temp_folder_name(self):
         """Return a folder name specific to the currently activated context"""
-        return self._cached_temp_folders[self._current_context_id]
+        pass
 
     # resource management API
 
@@ -651,16 +548,7 @@ class TemporaryResourcesManager(object):
             # We cannot just use from 'joblib.pool import delete_folder'
             # because joblib should only use relative imports to allow
             # easy vendoring.
-            delete_folder = __import__(
-                pool_module_name, fromlist=["delete_folder"]
-            ).delete_folder
-            try:
-                delete_folder(pool_subfolder, allow_non_empty=True)
-                resource_tracker.unregister(pool_subfolder, "folder")
-            except OSError:
-                warnings.warn(
-                    "Failed to delete temporary folder: {}".format(pool_subfolder)
-                )
+            pass
 
         self._finalizers[context_id] = atexit.register(_cleanup)
 

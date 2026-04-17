@@ -137,57 +137,7 @@ old_main_modules = []
 
 def prepare(data, parent_sentinel=None):
     """Try to get current process ready to unpickle process object."""
-    if "name" in data:
-        process.current_process().name = data["name"]
-
-    if "authkey" in data:
-        process.current_process().authkey = data["authkey"]
-
-    if "log_to_stderr" in data and data["log_to_stderr"]:
-        util.log_to_stderr()
-
-    if "log_level" in data:
-        util.get_logger().setLevel(data["log_level"])
-
-    if "log_fmt" in data:
-        import logging
-
-        util.get_logger().handlers[0].setFormatter(
-            logging.Formatter(data["log_fmt"])
-        )
-
-    if "sys_path" in data:
-        sys.path = data["sys_path"]
-
-    if "sys_argv" in data:
-        sys.argv = data["sys_argv"]
-
-    if "dir" in data:
-        os.chdir(data["dir"])
-
-    if "orig_dir" in data:
-        process.ORIGINAL_DIR = data["orig_dir"]
-
-    if "mp_tracker_fd" in data:
-        from multiprocessing.resource_tracker import (
-            _resource_tracker as mp_resource_tracker,
-        )
-
-        mp_resource_tracker._fd = data["mp_tracker_fd"]
-    if "tracker_fd" in data:
-        from .resource_tracker import _resource_tracker
-
-        if sys.platform == "win32":
-            handle = data["tracker_fd"]
-            handle = duplicate(handle, source_process=parent_sentinel)
-            _resource_tracker._fd = msvcrt.open_osfhandle(handle, os.O_RDONLY)
-        else:
-            _resource_tracker._fd = data["tracker_fd"]
-
-    if "init_main_from_name" in data:
-        _fixup_main_from_name(data["init_main_from_name"])
-    elif "init_main_from_path" in data:
-        _fixup_main_from_path(data["init_main_from_path"])
+    pass
 
 
 # Multiprocessing module helpers to fix up the main module in
@@ -197,48 +147,9 @@ def _fixup_main_from_name(mod_name):
     # their "main only" code unconditionally, so we don't even try to
     # populate anything in __main__, nor do we make any changes to
     # __main__ attributes
-    current_main = sys.modules["__main__"]
-    if mod_name == "__main__" or mod_name.endswith(".__main__"):
-        return
-
-    # If this process was forked, __main__ may already be populated
-    if getattr(current_main.__spec__, "name", None) == mod_name:
-        return
-
-    # Otherwise, __main__ may contain some non-main code where we need to
-    # support unpickling it properly. We rerun it as __mp_main__ and make
-    # the normal __main__ an alias to that
-    old_main_modules.append(current_main)
-    main_module = types.ModuleType("__mp_main__")
-    main_content = runpy.run_module(
-        mod_name, run_name="__mp_main__", alter_sys=True
-    )
-    main_module.__dict__.update(main_content)
-    sys.modules["__main__"] = sys.modules["__mp_main__"] = main_module
+    pass
 
 
 def _fixup_main_from_path(main_path):
     # If this process was forked, __main__ may already be populated
-    current_main = sys.modules["__main__"]
-
-    # Unfortunately, the main ipython launch script historically had no
-    # "if __name__ == '__main__'" guard, so we work around that
-    # by treating it like a __main__.py file
-    # See https://github.com/ipython/ipython/issues/4698
-    main_name = os.path.splitext(os.path.basename(main_path))[0]
-    if main_name == "ipython":
-        return
-
-    # Otherwise, if __file__ already has the setting we expect,
-    # there's nothing more to do
-    if getattr(current_main, "__file__", None) == main_path:
-        return
-
-    # If the parent process has sent a path through rather than a module
-    # name we assume it is an executable script that may contain
-    # non-main code that needs to be executed
-    old_main_modules.append(current_main)
-    main_module = types.ModuleType("__mp_main__")
-    main_content = runpy.run_path(main_path, run_name="__mp_main__")
-    main_module.__dict__.update(main_content)
-    sys.modules["__main__"] = sys.modules["__mp_main__"] = main_module
+    pass

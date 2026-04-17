@@ -40,11 +40,11 @@ class ParallelBackendBase(metaclass=ABCMeta):
 
     @property
     def supports_return_generator(self):
-        return self.supports_retrieve_callback
+        pass
 
     @property
     def supports_timeout(self):
-        return self.supports_retrieve_callback
+        pass
 
     nesting_level = None
 
@@ -149,10 +149,7 @@ class ParallelBackendBase(metaclass=ABCMeta):
         should return the result of the computation or raise an exception if
         the computation failed.
         """
-        if self.supports_timeout:
-            return out.get(timeout=timeout)
-        else:
-            return out.get()
+        pass
 
     def configure(
         self, n_jobs=1, parallel=None, prefer=None, require=None, **backend_kwargs
@@ -176,7 +173,7 @@ class ParallelBackendBase(metaclass=ABCMeta):
 
     def compute_batch_size(self):
         """Determine the optimal batch size"""
-        return 1
+        pass
 
     def batch_completed(self, batch_size, duration):
         """Callback indicate how long it took to run a batch"""
@@ -212,11 +209,7 @@ class ParallelBackendBase(metaclass=ABCMeta):
         nesting. Beyond, switch to sequential backend to avoid spawning too
         many threads on the host.
         """
-        nesting_level = getattr(self, "nesting_level", 0) + 1
-        if nesting_level > 1:
-            return SequentialBackend(nesting_level=nesting_level), None
-        else:
-            return ThreadingBackend(nesting_level=nesting_level), None
+        pass
 
     def _prepare_worker_env(self, n_jobs):
         """Return environment variables limiting threadpools in external libs.
@@ -262,7 +255,7 @@ class ParallelBackendBase(metaclass=ABCMeta):
         calls to finish, but the backend has no free workers to execute those
         tasks.
         """
-        yield
+        pass
 
     @staticmethod
     def in_main_thread():
@@ -296,11 +289,7 @@ class SequentialBackend(ParallelBackendBase):
 
     def get_nested_backend(self):
         # import is not top level to avoid cyclic import errors.
-        from .parallel import get_active_backend
-
-        # SequentialBackend should neither change the nesting level, the
-        # default backend or the number of jobs. Just return the current one.
-        return get_active_backend()
+        pass
 
 
 class PoolManagerMixin(object):
@@ -345,11 +334,7 @@ class PoolManagerMixin(object):
 
     def retrieve_result_callback(self, result):
         """Mimic concurrent.futures results, raising an error if needed."""
-        # In the multiprocessing Pool API, the callback are called with the
-        # result value as an argument so `result`(`out`) is the output of
-        # job.get(). It's either the result or the exception raised while
-        # collecting the result.
-        return _retrieve_traceback_capturing_wrapped_call(result)
+        pass
 
     def abort_everything(self, ensure_ready=True):
         """Shutdown the pool and restart a new one with the same parameters"""
@@ -386,78 +371,11 @@ class AutoBatchingMixin(object):
 
     def compute_batch_size(self):
         """Determine the optimal batch size"""
-        old_batch_size = self._effective_batch_size
-        batch_duration = self._smoothed_batch_duration
-        if batch_duration > 0 and batch_duration < self.MIN_IDEAL_BATCH_DURATION:
-            # The current batch size is too small: the duration of the
-            # processing of a batch of task is not large enough to hide
-            # the scheduling overhead.
-            ideal_batch_size = int(
-                old_batch_size * self.MIN_IDEAL_BATCH_DURATION / batch_duration
-            )
-            # Multiply by two to limit oscilations between min and max.
-            ideal_batch_size *= 2
-
-            # dont increase the batch size too fast to limit huge batch sizes
-            # potentially leading to starving worker
-            batch_size = min(2 * old_batch_size, ideal_batch_size)
-
-            batch_size = max(batch_size, 1)
-
-            self._effective_batch_size = batch_size
-            if self.parallel.verbose >= 10:
-                self.parallel._print(
-                    f"Batch computation too fast ({batch_duration}s.) "
-                    f"Setting batch_size={batch_size}."
-                )
-        elif batch_duration > self.MAX_IDEAL_BATCH_DURATION and old_batch_size >= 2:
-            # The current batch size is too big. If we schedule overly long
-            # running batches some CPUs might wait with nothing left to do
-            # while a couple of CPUs a left processing a few long running
-            # batches. Better reduce the batch size a bit to limit the
-            # likelihood of scheduling such stragglers.
-
-            # decrease the batch size quickly to limit potential starving
-            ideal_batch_size = int(
-                old_batch_size * self.MIN_IDEAL_BATCH_DURATION / batch_duration
-            )
-            # Multiply by two to limit oscilations between min and max.
-            batch_size = max(2 * ideal_batch_size, 1)
-            self._effective_batch_size = batch_size
-            if self.parallel.verbose >= 10:
-                self.parallel._print(
-                    f"Batch computation too slow ({batch_duration}s.) "
-                    f"Setting batch_size={batch_size}."
-                )
-        else:
-            # No batch size adjustment
-            batch_size = old_batch_size
-
-        if batch_size != old_batch_size:
-            # Reset estimation of the smoothed mean batch duration: this
-            # estimate is updated in the multiprocessing apply_async
-            # CallBack as long as the batch_size is constant. Therefore
-            # we need to reset the estimate whenever we re-tune the batch
-            # size.
-            self._smoothed_batch_duration = self._DEFAULT_SMOOTHED_BATCH_DURATION
-
-        return batch_size
+        pass
 
     def batch_completed(self, batch_size, duration):
         """Callback indicate how long it took to run a batch"""
-        if batch_size == self._effective_batch_size:
-            # Update the smoothed streaming estimate of the duration of a batch
-            # from dispatch to completion
-            old_duration = self._smoothed_batch_duration
-            if old_duration == self._DEFAULT_SMOOTHED_BATCH_DURATION:
-                # First record of duration for this batch size after the last
-                # reset.
-                new_duration = duration
-            else:
-                # Update the exponentially weighted average of the duration of
-                # batch for the current effective size.
-                new_duration = 0.8 * old_duration + 0.2 * duration
-            self._smoothed_batch_duration = new_duration
+        pass
 
     def reset_batch_stats(self):
         """Reset batch statistics to default values.
@@ -697,16 +615,7 @@ class LokyBackend(AutoBatchingMixin, ParallelBackendBase):
 
     def retrieve_result_callback(self, future):
         """Retrieve the result, here out is the future given by submit"""
-        try:
-            return future.result()
-        except ShutdownExecutorError:
-            raise RuntimeError(
-                "The executor underlying Parallel has been shutdown. "
-                "This is likely due to the garbage collection of a previous "
-                "generator from a call to Parallel with return_as='generator'."
-                " Make sure the generator is not garbage collected when "
-                "submitting a new job or that it is first properly exhausted."
-            )
+        pass
 
     def terminate(self):
         if self._workers is not None:

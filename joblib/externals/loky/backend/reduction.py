@@ -34,10 +34,7 @@ def register(type_, reduce_function):
 
 # make methods picklable
 def _reduce_method(m):
-    if m.__self__ is None:
-        return getattr, (m.__class__, m.__func__.__name__)
-    else:
-        return getattr, (m.__self__, m.__func__.__name__)
+    pass
 
 
 class _C:
@@ -54,7 +51,7 @@ register(type(_C.h), _reduce_method)
 
 
 def _reduce_method_descriptor(m):
-    return getattr, (m.__objclass__, m.__name__)
+    pass
 
 
 register(type(list.append), _reduce_method_descriptor)
@@ -63,11 +60,11 @@ register(type(int.__add__), _reduce_method_descriptor)
 
 # Make partial func pickable
 def _reduce_partial(p):
-    return _rebuild_partial, (p.func, p.args, p.keywords or {})
+    pass
 
 
 def _rebuild_partial(func, args, keywords):
-    return functools.partial(func, *args, **keywords)
+    pass
 
 
 register(functools.partial, _reduce_partial)
@@ -193,8 +190,7 @@ def get_loky_pickler_name():
 
 
 def get_loky_pickler():
-    global _LokyPickler
-    return _LokyPickler
+    pass
 
 
 # Set it to its default value

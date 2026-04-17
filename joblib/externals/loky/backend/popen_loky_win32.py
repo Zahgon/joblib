@@ -27,8 +27,7 @@ WINENV = hasattr(sys, "_base_executable") and not _path_eq(
 
 
 def _close_handles(*handles):
-    for handle in handles:
-        _winapi.CloseHandle(handle)
+    pass
 
 
 #
@@ -138,36 +137,9 @@ def get_command_line(pipe_handle, parent_pid, **kwds):
 
 def is_forking(argv):
     """Return whether commandline indicates we are forking."""
-    if len(argv) >= 2 and argv[1] == "--multiprocessing-fork":
-        return True
-    else:
-        return False
+    pass
 
 
 def main(pipe_handle, parent_pid=None):
     """Run code specified by data received over pipe."""
-    assert is_forking(sys.argv), "Not forking"
-
-    if parent_pid is not None:
-        source_process = _winapi.OpenProcess(
-            _winapi.SYNCHRONIZE | _winapi.PROCESS_DUP_HANDLE, False, parent_pid
-        )
-    else:
-        source_process = None
-    new_handle = reduction.duplicate(
-        pipe_handle, source_process=source_process
-    )
-    fd = msvcrt.open_osfhandle(new_handle, os.O_RDONLY)
-    parent_sentinel = source_process
-
-    with os.fdopen(fd, "rb", closefd=True) as from_parent:
-        process.current_process()._inheriting = True
-        try:
-            preparation_data = load(from_parent)
-            spawn.prepare(preparation_data, parent_sentinel)
-            self = load(from_parent)
-        finally:
-            del process.current_process()._inheriting
-
-    exitcode = self._bootstrap(parent_sentinel)
-    sys.exit(exitcode)
+    pass

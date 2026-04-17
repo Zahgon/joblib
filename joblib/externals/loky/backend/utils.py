@@ -22,12 +22,7 @@ def kill_process_tree(process, use_psutil=True):
 
 
 def recursive_terminate(process, use_psutil=True):
-    warnings.warn(
-        "recursive_terminate is deprecated in loky 3.2, use kill_process_tree"
-        "instead",
-        DeprecationWarning,
-    )
-    kill_process_tree(process, use_psutil=use_psutil)
+    pass
 
 
 def _kill_process_tree_with_psutil(process):

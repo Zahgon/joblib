@@ -66,53 +66,7 @@ class Queue(mp_Queue):
 
     # Overload _start_thread to correctly call our custom _feed
     def _start_thread(self):
-        util.debug("Queue._start_thread()")
-
-        # Start thread which transfers data from buffer to pipe
-        self._buffer.clear()
-        self._thread = threading.Thread(
-            target=Queue._feed,
-            args=(
-                self._buffer,
-                self._notempty,
-                self._send_bytes,
-                self._wlock,
-                self._writer.close,
-                self._reducers,
-                self._ignore_epipe,
-                self._on_queue_feeder_error,
-                self._sem,
-            ),
-            name="QueueFeederThread",
-        )
-        self._thread.daemon = True
-
-        util.debug("doing self._thread.start()")
-        self._thread.start()
-        util.debug("... done self._thread.start()")
-
-        # On process exit we will wait for data to be flushed to pipe.
-        #
-        # However, if this process created the queue then all
-        # processes which use the queue will be descendants of this
-        # process.  Therefore waiting for the queue to be flushed
-        # is pointless once all the child processes have been joined.
-        created_by_this_process = self._opid == os.getpid()
-        if not self._joincancelled and not created_by_this_process:
-            self._jointhread = util.Finalize(
-                self._thread,
-                Queue._finalize_join,
-                [weakref.ref(self._thread)],
-                exitpriority=-5,
-            )
-
-        # Send sentinel to the thread queue object when garbage collected
-        self._close = util.Finalize(
-            self,
-            Queue._finalize_close,
-            [self._buffer, self._notempty],
-            exitpriority=10,
-        )
+        pass
 
     # Overload the _feed methods to use our custom pickling strategy.
     @staticmethod
@@ -127,70 +81,14 @@ class Queue(mp_Queue):
         onerror,
         queue_sem,
     ):
-        util.debug("starting thread to feed data to pipe")
-        nacquire = notempty.acquire
-        nrelease = notempty.release
-        nwait = notempty.wait
-        bpopleft = buffer.popleft
-        sentinel = _sentinel
-        if sys.platform != "win32":
-            wacquire = writelock.acquire
-            wrelease = writelock.release
-        else:
-            wacquire = None
-
-        while True:
-            try:
-                nacquire()
-                try:
-                    if not buffer:
-                        nwait()
-                finally:
-                    nrelease()
-                try:
-                    while True:
-                        obj = bpopleft()
-                        if obj is sentinel:
-                            util.debug("feeder thread got sentinel -- exiting")
-                            close()
-                            return
-
-                        # serialize the data before acquiring the lock
-                        obj_ = dumps(obj, reducers=reducers)
-                        if wacquire is None:
-                            send_bytes(obj_)
-                        else:
-                            wacquire()
-                            try:
-                                send_bytes(obj_)
-                            finally:
-                                wrelease()
-                        # Remove references early to avoid leaking memory
-                        del obj, obj_
-                except IndexError:
-                    pass
-            except BaseException as e:
-                if ignore_epipe and getattr(e, "errno", 0) == errno.EPIPE:
-                    return
-                # Since this runs in a daemon thread the resources it uses
-                # may be become unusable while the process is cleaning up.
-                # We ignore errors which happen after the process has
-                # started to cleanup.
-                if util.is_exiting():
-                    util.info(f"error in queue thread: {e}")
-                    return
-                else:
-                    queue_sem.release()
-                    onerror(e, obj)
+        pass
 
     def _on_queue_feeder_error(self, e, obj):
         """
         Private API hook called when feeding data in the background thread
         raises an exception.  For overriding by concurrent.futures.
         """
-        import traceback
-
-        traceback.print_exc()
+        pass
 
 
 class SimpleQueue(mp_SimpleQueue):

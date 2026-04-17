@@ -88,7 +88,7 @@ class Logger(object):
 
     def format(self, obj, indent=0):
         """Return the formatted representation of the object."""
-        return pformat(obj, indent=indent, depth=self.depth)
+        pass
 
 
 ###############################################################################

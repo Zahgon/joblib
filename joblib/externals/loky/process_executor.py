@@ -106,12 +106,7 @@ try:
     _USE_PSUTIL = True
 
     def _get_memory_usage(pid, force_gc=False):
-        if force_gc:
-            gc.collect()
-
-        mem_size = Process(pid).memory_info().rss
-        mp.util.debug(f"psutil return memory size: {mem_size}")
-        return mem_size
+        pass
 
 except ImportError:
     _USE_PSUTIL = False
@@ -185,30 +180,7 @@ _threads_wakeups = weakref.WeakKeyDictionary()
 
 
 def _python_exit():
-    global _global_shutdown
-    _global_shutdown = True
-
-    # Materialize the list of items to avoid error due to iterating over
-    # changing size dictionary.
-    items = list(_threads_wakeups.items())
-    if len(items) > 0:
-        mp.util.debug(
-            f"Interpreter shutting down. Waking up {len(items)}"
-            f"executor_manager_thread:\n{items}"
-        )
-
-    # Wake up the executor_manager_thread's so they can detect the interpreter
-    # is shutting down and exit.
-    for _, (shutdown_lock, thread_wakeup) in items:
-        with shutdown_lock:
-            thread_wakeup.wakeup()
-
-    # Collect the executor_manager_thread's to make sure we exit cleanly.
-    for thread, _ in items:
-        # This locks is to prevent situations where an executor is gc'ed in one
-        # thread while the atexit finalizer is running in another thread.
-        with _global_shutdown_lock:
-            thread.join()
+    pass
 
 
 # With the fork context, _thread_wakeups is propagated to children.
@@ -254,8 +226,7 @@ class _ExceptionWithTraceback:
 
 
 def _rebuild_exc(exc, tb):
-    exc.__cause__ = _RemoteTraceback(tb)
-    return exc
+    pass
 
 
 class _WorkItem:
@@ -316,43 +287,12 @@ class _SafeQueue(Queue):
         super().__init__(max_size, reducers=reducers, ctx=ctx)
 
     def _on_queue_feeder_error(self, e, obj):
-        if isinstance(obj, _CallItem):
-            # format traceback only works on python3
-            if isinstance(e, struct.error):
-                raised_error = RuntimeError(
-                    "The task could not be sent to the workers as it is too "
-                    "large for `send_bytes`."
-                )
-            else:
-                raised_error = PicklingError(
-                    "Could not pickle the task to send it to the workers."
-                )
-            tb = traceback.format_exception(
-                type(e), e, getattr(e, "__traceback__", None)
-            )
-            raised_error.__cause__ = _RemoteTraceback("".join(tb))
-            work_item = self.pending_work_items.pop(obj.work_id, None)
-            self.running_work_items.remove(obj.work_id)
-            # work_item can be None if another process terminated. In this
-            # case, the executor_manager_thread fails all work_items with
-            # BrokenProcessPool
-            if work_item is not None:
-                work_item.future.set_exception(raised_error)
-                del work_item
-            with self.shutdown_lock:
-                self.thread_wakeup.wakeup()
-        else:
-            super()._on_queue_feeder_error(e, obj)
+        pass
 
 
 def _get_chunks(chunksize, *iterables):
     """Iterates over zip()ed iterables in chunks."""
-    it = zip(*iterables)
-    while True:
-        chunk = tuple(itertools.islice(it, chunksize))
-        if not chunk:
-            return
-        yield chunk
+    pass
 
 
 def _process_chunk(fn, chunk):
@@ -364,40 +304,16 @@ def _process_chunk(fn, chunk):
     This function is run in a separate process.
 
     """
-    return [fn(*args) for args in chunk]
+    pass
 
 
 def _sendback_result(result_queue, work_id, result=None, exception=None):
     """Safely send back the given result or exception"""
-    try:
-        result_queue.put(
-            _ResultItem(work_id, result=result, exception=exception)
-        )
-    except BaseException as e:
-        exc = _ExceptionWithTraceback(e)
-        result_queue.put(_ResultItem(work_id, exception=exc))
+    pass
 
 
 def _enable_faulthandler_if_needed():
-    if "PYTHONFAULTHANDLER" in os.environ:
-        # Respect the environment variable to configure faulthandler. This
-        # makes it possible to never enable faulthandler in the loky workers by
-        # setting PYTHONFAULTHANDLER=0 explicitly in the environment.
-        mp.util.debug(
-            f"faulthandler explicitly configured by environment variable: "
-            f"PYTHONFAULTHANDLER={os.environ['PYTHONFAULTHANDLER']}."
-        )
-    else:
-        if faulthandler.is_enabled():
-            # Fault handler is already enabled, possibly via a custom
-            # initializer to customize the behavior.
-            mp.util.debug("faulthandler already enabled.")
-        else:
-            # Enable faulthandler by default with default paramaters otherwise.
-            mp.util.debug(
-                "Enabling faulthandler to report tracebacks on worker crashes."
-            )
-            faulthandler.enable()
+    pass
 
 
 def _process_worker(
@@ -429,113 +345,7 @@ def _process_worker(
             workers timeout.
         current_depth: Nested parallelism level, to avoid infinite spawning.
     """
-    if initializer is not None:
-        try:
-            initializer(*initargs)
-        except BaseException:
-            LOGGER.critical("Exception in initializer:", exc_info=True)
-            # The parent will notice that the process stopped and
-            # mark the pool broken
-            return
-
-    # set the global _CURRENT_DEPTH mechanism to limit recursive call
-    global _CURRENT_DEPTH
-    _CURRENT_DEPTH = current_depth
-    _process_reference_size = None
-    _last_memory_leak_check = None
-    pid = os.getpid()
-
-    mp.util.debug(f"Worker started with timeout={timeout}")
-    _enable_faulthandler_if_needed()
-
-    while True:
-        try:
-            call_item = call_queue.get(block=True, timeout=timeout)
-            if call_item is None:
-                mp.util.info("Shutting down worker on sentinel")
-        except queue.Empty:
-            mp.util.info(f"Shutting down worker after timeout {timeout:0.3f}s")
-            if processes_management_lock.acquire(block=False):
-                processes_management_lock.release()
-                call_item = None
-            else:
-                mp.util.info("Could not acquire processes_management_lock")
-                continue
-        except BaseException:
-            previous_tb = traceback.format_exc()
-            try:
-                result_queue.put(_RemoteTraceback(previous_tb))
-            except BaseException:
-                # If we cannot format correctly the exception, at least print
-                # the traceback.
-                print(previous_tb)
-            mp.util.debug("Exiting with code 1")
-            sys.exit(1)
-        if call_item is None:
-            # Notify queue management thread about worker shutdown
-            result_queue.put(pid)
-            is_clean = worker_exit_lock.acquire(True, timeout=30)
-
-            # Early notify any loky executor running in this worker process
-            # (nested parallelism) that this process is about to shutdown to
-            # avoid a deadlock waiting undifinitely for the worker to finish.
-            _python_exit()
-
-            if is_clean:
-                mp.util.debug("Exited cleanly")
-            else:
-                mp.util.info("Main process did not release worker_exit")
-            return
-        try:
-            r = call_item()
-        except BaseException as e:
-            exc = _ExceptionWithTraceback(e)
-            result_queue.put(_ResultItem(call_item.work_id, exception=exc))
-        else:
-            _sendback_result(result_queue, call_item.work_id, result=r)
-            del r
-
-        # Free the resource as soon as possible, to avoid holding onto
-        # open files or shared memory that is not needed anymore
-        del call_item
-
-        if _USE_PSUTIL:
-            if _process_reference_size is None:
-                # Make reference measurement after the first call
-                _process_reference_size = _get_memory_usage(pid, force_gc=True)
-                _last_memory_leak_check = time()
-                continue
-            if time() - _last_memory_leak_check > _MEMORY_LEAK_CHECK_DELAY:
-                mem_usage = _get_memory_usage(pid)
-                _last_memory_leak_check = time()
-                if mem_usage - _process_reference_size < _MAX_MEMORY_LEAK_SIZE:
-                    # Memory usage stays within bounds: everything is fine.
-                    continue
-
-                # Check again memory usage; this time take the measurement
-                # after a forced garbage collection to break any reference
-                # cycles.
-                mem_usage = _get_memory_usage(pid, force_gc=True)
-                _last_memory_leak_check = time()
-                if mem_usage - _process_reference_size < _MAX_MEMORY_LEAK_SIZE:
-                    # The GC managed to free the memory: everything is fine.
-                    continue
-
-                # The process is leaking memory: let the master process
-                # know that we need to start a new worker.
-                mp.util.info("Memory leak detected: shutting down worker")
-                result_queue.put(pid)
-                with worker_exit_lock:
-                    mp.util.debug("Exit due to memory leak")
-                    return
-        else:
-            # if psutil is not installed, trigger gc.collect events
-            # regularly to limit potential memory leaks due to reference cycles
-            if _last_memory_leak_check is None or (
-                time() - _last_memory_leak_check > _MEMORY_LEAK_CHECK_DELAY
-            ):
-                gc.collect()
-                _last_memory_leak_check = time()
+    pass
 
 
 class _ExecutorManagerThread(threading.Thread):
@@ -570,16 +380,7 @@ class _ExecutorManagerThread(threading.Thread):
             thread_wakeup=self.thread_wakeup,
             shutdown_lock=self.shutdown_lock,
         ):
-            if mp is not None:
-                # At this point, the multiprocessing module can already be
-                # garbage collected. We only log debug info when still
-                # possible.
-                mp.util.debug(
-                    "Executor collected: triggering callback for"
-                    " QueueManager wakeup"
-                )
-            with shutdown_lock:
-                thread_wakeup.wakeup()
+            pass
 
         self.executor_reference = weakref.ref(executor, weakref_cb)
 
@@ -994,10 +795,7 @@ def _chain_from_iterable_of_lists(iterable):
     Each item in *iterable* should be a list.  This function is
     careful not to keep references to yielded objects.
     """
-    for element in iterable:
-        element.reverse()
-        while element:
-            yield element.pop()
+    pass
 
 
 def _check_max_depth(context):
@@ -1302,17 +1100,7 @@ class ProcessPoolExecutor(Executor):
                 before the given timeout.
             Exception: If fn(*args) raises for any values.
         """
-        timeout = kwargs.get("timeout", None)
-        chunksize = kwargs.get("chunksize", 1)
-        if chunksize < 1:
-            raise ValueError("chunksize must be >= 1.")
-
-        results = super().map(
-            partial(_process_chunk, fn),
-            _get_chunks(chunksize, *iterables),
-            timeout=timeout,
-        )
-        return _chain_from_iterable_of_lists(results)
+        pass
 
     def shutdown(self, wait=True, kill_workers=False):
         mp.util.debug(f"shutting down executor {self}")

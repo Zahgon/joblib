@@ -122,39 +122,7 @@ class NumpyArrayWrapper(object):
         This function is an adaptation of the numpy write_array function
         available in version 1.10.1 in numpy/lib/format.py.
         """
-        # Set buffer size to 16 MiB to hide the Python loop overhead.
-        buffersize = max(16 * 1024**2 // array.itemsize, 1)
-        if array.dtype.hasobject:
-            # We contain Python objects so we cannot write out the data
-            # directly. Instead, we will pickle it out with version 5 of the
-            # pickle protocol.
-            pickle.dump(array, pickler.file_handle, protocol=5)
-        else:
-            numpy_array_alignment_bytes = self.safe_get_numpy_array_alignment_bytes()
-            if numpy_array_alignment_bytes is not None:
-                current_pos = pickler.file_handle.tell()
-                pos_after_padding_byte = current_pos + 1
-                padding_length = numpy_array_alignment_bytes - (
-                    pos_after_padding_byte % numpy_array_alignment_bytes
-                )
-                # A single byte is written that contains the padding length in
-                # bytes
-                padding_length_byte = int.to_bytes(
-                    padding_length, length=1, byteorder="little"
-                )
-                pickler.file_handle.write(padding_length_byte)
-
-                if padding_length != 0:
-                    padding = b"\xff" * padding_length
-                    pickler.file_handle.write(padding)
-
-            for chunk in pickler.np.nditer(
-                array,
-                flags=["external_loop", "buffered", "zerosize_ok"],
-                buffersize=buffersize,
-                order=self.order,
-            ):
-                pickler.file_handle.write(chunk.tobytes("C"))
+        pass
 
     def read_array(self, unpickler, ensure_native_byte_order):
         """Read array from unpickler file handle.
@@ -335,27 +303,7 @@ class NumpyPickler(Pickler):
 
     def _create_array_wrapper(self, array):
         """Create and returns a numpy array wrapper from a numpy array."""
-        order = (
-            "F" if (array.flags.f_contiguous and not array.flags.c_contiguous) else "C"
-        )
-        allow_mmap = not self.buffered and not array.dtype.hasobject
-
-        kwargs = {}
-        try:
-            self.file_handle.tell()
-        except io.UnsupportedOperation:
-            kwargs = {"numpy_array_alignment_bytes": None}
-
-        wrapper = NumpyArrayWrapper(
-            type(array),
-            array.shape,
-            order,
-            array.dtype,
-            allow_mmap=allow_mmap,
-            **kwargs,
-        )
-
-        return wrapper
+        pass
 
     def save(self, obj):
         """Subclass the Pickler `save` method.
@@ -367,32 +315,7 @@ class NumpyPickler(Pickler):
         after in the file. Warning: the file produced does not follow the
         pickle format. As such it can not be read with `pickle.load`.
         """
-        if self.np is not None and type(obj) in (
-            self.np.ndarray,
-            self.np.matrix,
-            self.np.memmap,
-        ):
-            if type(obj) is self.np.memmap:
-                # Pickling doesn't work with memmapped arrays
-                obj = self.np.asanyarray(obj)
-
-            # The array wrapper is pickled instead of the real array.
-            wrapper = self._create_array_wrapper(obj)
-            Pickler.save(self, wrapper)
-
-            # A framer was introduced with pickle protocol 4 and we want to
-            # ensure the wrapper object is written before the numpy array
-            # buffer in the pickle file.
-            # See https://www.python.org/dev/peps/pep-3154/#framing to get
-            # more information on the framer behavior.
-            if self.proto >= 4:
-                self.framer.commit_frame(force=True)
-
-            # And then array bytes are written right after the wrapper.
-            wrapper.write_array(obj, self)
-            return
-
-        return Pickler.save(self, obj)
+        pass
 
 
 class NumpyUnpickler(Unpickler):
@@ -443,25 +366,7 @@ class NumpyUnpickler(Unpickler):
         replace them directly in the stack of pickler.
         NDArrayWrapper is used for backward compatibility with joblib <= 0.9.
         """
-        Unpickler.load_build(self)
-
-        # For backward compatibility, we support NDArrayWrapper objects.
-        if isinstance(self.stack[-1], (NDArrayWrapper, NumpyArrayWrapper)):
-            if self.np is None:
-                raise ImportError(
-                    "Trying to unpickle an ndarray, but numpy didn't import correctly"
-                )
-            array_wrapper = self.stack.pop()
-            # If any NDArrayWrapper is found, we switch to compatibility mode,
-            # this will be used to raise a DeprecationWarning to the user at
-            # the end of the unpickling.
-            if isinstance(array_wrapper, NDArrayWrapper):
-                self.compat_mode = True
-                _array_payload = array_wrapper.read(self)
-            else:
-                _array_payload = array_wrapper.read(self, self.ensure_native_byte_order)
-
-            self.stack.append(_array_payload)
+        pass
 
     # Be careful to register our new method.
     dispatch[pickle.BUILD[0]] = load_build

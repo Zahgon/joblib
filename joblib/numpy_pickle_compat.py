@@ -20,9 +20,7 @@ def hex_str(an_int):
 
 
 def asbytes(s):
-    if isinstance(s, bytes):
-        return s
-    return s.encode("latin1")
+    pass
 
 
 _MAX_LEN = len(hex_str(2**64))
@@ -70,11 +68,7 @@ def write_zfile(file_handle, data, compress=1):
     for persistence. Backward compatibility is not guaranteed. Do not
     use for external purposes.
     """
-    file_handle.write(_ZFILE_PREFIX)
-    length = hex_str(len(data))
-    # Store the length of the data
-    file_handle.write(asbytes(length.ljust(_MAX_LEN)))
-    file_handle.write(zlib.compress(asbytes(data), compress))
+    pass
 
 
 ###############################################################################
@@ -188,15 +182,7 @@ class ZipNumpyUnpickler(Unpickler):
         NDArrayWrapper, by the array we are interested in. We
         replace them directly in the stack of pickler.
         """
-        Unpickler.load_build(self)
-        if isinstance(self.stack[-1], NDArrayWrapper):
-            if self.np is None:
-                raise ImportError(
-                    "Trying to unpickle an ndarray, but numpy didn't import correctly"
-                )
-            nd_array_wrapper = self.stack.pop()
-            array = nd_array_wrapper.read(self)
-            self.stack.append(array)
+        pass
 
     dispatch[pickle.BUILD[0]] = load_build
 

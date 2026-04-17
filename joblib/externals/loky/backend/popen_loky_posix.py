@@ -28,7 +28,7 @@ class _DupFd:
         self.fd = reduction._mk_inheritable(fd)
 
     def detach(self):
-        return self.fd
+        pass
 
 
 #
@@ -146,7 +146,7 @@ class Popen:
 
     @staticmethod
     def thread_is_spawning():
-        return True
+        pass
 
 
 if __name__ == "__main__":

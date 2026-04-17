@@ -25,12 +25,7 @@ param = pytest.param
 
 def warnings_to_stdout():
     """Redirect all warnings to stdout."""
-    showwarning_orig = warnings.showwarning
-
-    def showwarning(msg, cat, fname, lno, file=None, line=0):
-        showwarning_orig(msg, cat, os.path.basename(fname), line, sys.stdout)
-
-    warnings.showwarning = showwarning
+    pass
     # warnings.simplefilter('always')
 
 
@@ -51,8 +46,7 @@ def check_subprocess_call(cmd, timeout=5, stdout_regex=None, stderr_regex=None):
         ideally this should not be needed but can help avoid clogging the CI
         workers in case of deadlocks.
         """
-        warnings.warn(f"Timeout running {cmd}")
-        proc.terminate()
+        pass
 
     def kill_process():  # pragma: no cover
         """
@@ -60,8 +54,7 @@ def check_subprocess_call(cmd, timeout=5, stdout_regex=None, stderr_regex=None):
         should not be needed but can help avoid clogging the CI workers in
         case of deadlocks.
         """
-        warnings.warn(f"Timeout running {cmd}")
-        proc.kill()
+        pass
 
     try:
         if timeout is not None:

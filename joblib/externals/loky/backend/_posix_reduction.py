@@ -48,18 +48,15 @@ def _reduce_socket(s):
 
 
 def _rebuild_socket(df, family, type, proto):
-    fd = df.detach()
-    return socket.fromfd(fd, family, type, proto)
+    pass
 
 
 def rebuild_connection(df, readable, writable):
-    fd = df.detach()
-    return Connection(fd, readable, writable)
+    pass
 
 
 def reduce_connection(conn):
-    df = DupFd(conn.fileno())
-    return rebuild_connection, (df, conn.readable, conn.writable)
+    pass
 
 
 register(socket.socket, _reduce_socket)

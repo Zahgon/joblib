@@ -57,21 +57,7 @@ def limit(max_=None):
     """Return decorator that limits allowed returned values."""
 
     def decorator(func):
-        @functools.wraps(func)
-        def wrapper(*args, **kwargs):
-            ret = func(*args, **kwargs)
-            try:
-                mag = abs(ret)
-            except TypeError:
-                pass  # not applicable
-            else:
-                if mag > max_:
-                    raise ValueError(
-                        f"Numeric literal {ret} is too large, max is {max_}."
-                    )
-            return ret
-
-        return wrapper
+        pass
 
     return decorator
 

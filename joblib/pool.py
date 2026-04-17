@@ -88,8 +88,7 @@ class CustomizablePickler(Pickler):
             # Python 2 pickler dispatching is not explicitly customizable.
             # Let us use a closure to workaround this limitation.
             def dispatcher(self, obj):
-                reduced = reduce_func(obj)
-                self.save_reduce(obj=obj, *reduced)
+                pass
 
             self.dispatch[type] = dispatcher
         else:
@@ -353,10 +352,4 @@ class MemmappingPool(PicklingPool):
         # We cache this property because it is called late in the tests - at
         # this point, all context have been unregistered, and
         # resolve_temp_folder_name raises an error.
-        if getattr(self, "_cached_temp_folder", None) is not None:
-            return self._cached_temp_folder
-        else:
-            self._cached_temp_folder = (
-                self._temp_folder_manager.resolve_temp_folder_name()
-            )  # noqa
-            return self._cached_temp_folder
+        pass

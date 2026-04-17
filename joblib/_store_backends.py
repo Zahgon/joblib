@@ -200,34 +200,7 @@ class StoreBackendMixin(object):
 
     def dump_item(self, call_id, item, verbose=1):
         """Dump an item in the store at the id given as a list of str."""
-        try:
-            item_path = os.path.join(self.location, *call_id)
-            if not self._item_exists(item_path):
-                self.create_location(item_path)
-            filename = os.path.join(item_path, "output.pkl")
-            if verbose > 10:
-                print("Persisting in %s" % item_path)
-
-            def write_func(to_write, dest_filename):
-                with self._open_item(dest_filename, "wb") as f:
-                    try:
-                        numpy_pickle.dump(to_write, f, compress=self.compress)
-                    except PicklingError as e:
-                        # TODO(1.5) turn into error
-                        warnings.warn(
-                            "Unable to cache to disk: failed to pickle "
-                            "output. In version 1.5 this will raise an "
-                            f"exception. Exception: {e}.",
-                            FutureWarning,
-                        )
-
-            self._concurrency_safe_write(item, filename, write_func)
-        except Exception as e:  # noqa: E722
-            warnings.warn(
-                "Unable to cache to disk. Possibly a race condition in the "
-                f"creation of the directory. Exception: {e}.",
-                CacheWarning,
-            )
+        pass
 
     def clear_item(self, call_id):
         """Clear the item at the id, given as a list of str."""
@@ -237,14 +210,11 @@ class StoreBackendMixin(object):
 
     def contains_item(self, call_id):
         """Check if there is an item at the id, given as a list of str."""
-        item_path = os.path.join(self.location, *call_id)
-        filename = os.path.join(item_path, "output.pkl")
-
-        return self._item_exists(filename)
+        pass
 
     def get_item_info(self, call_id):
         """Return information about item."""
-        return {"location": os.path.join(self.location, *call_id)}
+        pass
 
     def get_metadata(self, call_id):
         """Return actual metadata of an item."""
@@ -258,23 +228,11 @@ class StoreBackendMixin(object):
 
     def store_metadata(self, call_id, metadata):
         """Store metadata of a computation."""
-        try:
-            item_path = os.path.join(self.location, *call_id)
-            self.create_location(item_path)
-            filename = os.path.join(item_path, "metadata.json")
-
-            def write_func(to_write, dest_filename):
-                with self._open_item(dest_filename, "wb") as f:
-                    f.write(json.dumps(to_write).encode("utf-8"))
-
-            self._concurrency_safe_write(metadata, filename, write_func)
-        except:  # noqa: E722
-            pass
+        pass
 
     def contains_path(self, call_id):
         """Check cached function is available in store."""
-        func_path = os.path.join(self.location, *call_id)
-        return self.object_exists(func_path)
+        pass
 
     def clear_path(self, call_id):
         """Clear all items with a common path in the store."""
@@ -295,16 +253,11 @@ class StoreBackendMixin(object):
 
     def get_cached_func_code(self, call_id):
         """Store the code of the cached function."""
-        filename = os.path.join(self.location, *call_id, "func_code.py")
-        try:
-            with self._open_item(filename, "rb") as f:
-                return f.read().decode("utf-8")
-        except:  # noqa: E722
-            raise
+        pass
 
     def get_cached_func_info(self, call_id):
         """Return information related to the cached function if it exists."""
-        return {"location": os.path.join(self.location, *call_id)}
+        pass
 
     def clear(self):
         """Clear the whole store content."""
@@ -314,84 +267,17 @@ class StoreBackendMixin(object):
         """
         Remove the store's oldest files to enforce item, byte, and age limits.
         """
-        items_to_delete = self._get_items_to_delete(bytes_limit, items_limit, age_limit)
-
-        for item in items_to_delete:
-            if self.verbose > 10:
-                print("Deleting item {0}".format(item))
-            try:
-                self.clear_location(item.path)
-            except OSError:
-                # Even with ignore_errors=True shutil.rmtree can raise OSError
-                # with:
-                # [Errno 116] Stale file handle if another process has deleted
-                # the folder already.
-                pass
+        pass
 
     def _get_items_to_delete(self, bytes_limit, items_limit=None, age_limit=None):
         """
         Get items to delete to keep the store under size, file, & age limits.
         """
-        if isinstance(bytes_limit, str):
-            bytes_limit = memstr_to_bytes(bytes_limit)
-
-        items = self.get_items()
-        if not items:
-            return []
-
-        size = sum(item.size for item in items)
-
-        if bytes_limit is not None:
-            to_delete_size = size - bytes_limit
-        else:
-            to_delete_size = 0
-
-        if items_limit is not None:
-            to_delete_items = len(items) - items_limit
-        else:
-            to_delete_items = 0
-
-        if age_limit is not None:
-            older_item = min(item.last_access for item in items)
-            if age_limit.total_seconds() < 0:
-                raise ValueError("age_limit has to be a positive timedelta")
-            deadline = datetime.datetime.now() - age_limit
-        else:
-            deadline = None
-
-        if (
-            to_delete_size <= 0
-            and to_delete_items <= 0
-            and (deadline is None or older_item > deadline)
-        ):
-            return []
-
-        # We want to delete first the cache items that were accessed a
-        # long time ago
-        items.sort(key=operator.attrgetter("last_access"))
-
-        items_to_delete = []
-        size_so_far = 0
-        items_so_far = 0
-
-        for item in items:
-            if (
-                (size_so_far >= to_delete_size)
-                and items_so_far >= to_delete_items
-                and (deadline is None or deadline < item.last_access)
-            ):
-                break
-
-            items_to_delete.append(item)
-            size_so_far += item.size
-            items_so_far += 1
-
-        return items_to_delete
+        pass
 
     def _concurrency_safe_write(self, to_write, filename, write_func):
         """Writes an object into a file in a concurrency-safe way."""
-        temporary_filename = concurrency_safe_write(to_write, filename, write_func)
-        self._move_item(temporary_filename, filename)
+        pass
 
     def __repr__(self):
         """Printable representation of the store location."""

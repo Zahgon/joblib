@@ -81,7 +81,7 @@ class _WeakKeyDictionary:
             # callback to automatically delete the entry from the mapping
             # as soon as the object used as key is garbage collected.
             def on_destroy(_):
-                del self._data[key]
+                pass
 
             ref = weakref.ref(obj, on_destroy)
         self._data[key] = ref, value
@@ -206,32 +206,20 @@ class DaskDistributedBackend(AutoBatchingMixin, ParallelBackendBase):
         self._callbacks = {}
 
     async def _collect(self):
-        while self._continue:
-            async for future, result in self.waiting_futures:
-                cf_future = self._results.pop(future)
-                callback = self._callbacks.pop(future)
-                if future.status == "error":
-                    typ, exc, tb = result
-                    cf_future.set_exception(exc)
-                else:
-                    cf_future.set_result(result)
-                    callback(result)
-            await asyncio.sleep(0.01)
+        pass
 
     def __reduce__(self):
         return (DaskDistributedBackend, ())
 
     def get_nested_backend(self):
-        return DaskDistributedBackend(client=self.client), -1
+        pass
 
     def configure(self, n_jobs=1, parallel=None, **backend_args):
         self.parallel = parallel
         return self.effective_n_jobs(n_jobs)
 
     def start_call(self):
-        self._continue = True
-        self.client.loop.add_callback(self._collect)
-        self.call_data_futures = _WeakKeyDictionary()
+        pass
 
     def stop_call(self):
         # The explicit call to clear is required to break a cycling reference
@@ -332,25 +320,14 @@ class DaskDistributedBackend(AutoBatchingMixin, ParallelBackendBase):
         cf_future.get = cf_future.result  # achieve AsyncResult API
 
         async def f(func, callback):
-            batch, tasks = await self._to_func_args(func)
-            key = f"{repr(batch)}-{uuid4().hex}"
-
-            dask_future = self.client.submit(
-                _TracebackCapturingWrapper(batch),
-                tasks=tasks,
-                key=key,
-                **self.submit_kwargs,
-            )
-            self.waiting_futures.add(dask_future)
-            self._callbacks[dask_future] = callback
-            self._results[dask_future] = cf_future
+            pass
 
         self.client.loop.add_callback(f, func, callback)
 
         return cf_future
 
     def retrieve_result_callback(self, out):
-        return _retrieve_traceback_capturing_wrapped_call(out)
+        pass
 
     def abort_everything(self, ensure_ready=True):
         """Tell the client to cancel any task submitted via this instance
@@ -369,13 +346,4 @@ class DaskDistributedBackend(AutoBatchingMixin, ParallelBackendBase):
         This removes thread from the worker's thread pool (using 'secede').
         Seceding avoids deadlock in nested parallelism settings.
         """
-        # See 'joblib.Parallel.__call__' and 'joblib.Parallel.retrieve' for how
-        # this is used.
-        if hasattr(thread_state, "execution_state"):
-            # we are in a worker. Secede to avoid deadlock.
-            secede()
-
-        yield
-
-        if hasattr(thread_state, "execution_state"):
-            rejoin()
+        pass
